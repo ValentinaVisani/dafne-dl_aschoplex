@@ -73,8 +73,8 @@ class DataGeneratorDir(Sequence):
 
 class DataGeneratorMem(Sequence):
     def __init__(self, training_data_list, list_X=list(range(1, 4501)), batch_size=20, dim=(432, 432), shuffle=True):
-        print('Data Generator Initialization. Data list len:', len(training_data_list))
-        print('list_X', list_X)
+        #print('Data Generator Initialization. Data list len:', len(training_data_list))
+        #print('list_X', list_X)
         self.dim = dim
         self.batch_size = batch_size
         self.list_X = list_X
@@ -94,7 +94,7 @@ class DataGeneratorMem(Sequence):
 
         # Find list of IDs
         list_X_temp = [self.list_X[k] for k in indexes]
-        print("list_X_temp", list_X_temp)
+        #print("list_X_temp", list_X_temp)
 
         # Generate data
         X, y = self.__data_generation(list_X_temp)

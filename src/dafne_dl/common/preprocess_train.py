@@ -264,7 +264,7 @@ def input_creation_mem(image_list: list, mask_list: list, band: float):
         else:
             frequencies.append(cla / ima)
 
-    print("Frequencies", frequencies)
+    #print("Frequencies", frequencies)
 
     av = sum(frequencies) / ch
 
