@@ -434,7 +434,7 @@ def common_input_process_single(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE
 
             if np.sum(mask) > 5:
                 defined_rois += 1
-                print(base_label, 'Found, total rois:', defined_rois)
+                #print(base_label, 'Found, total rois:', defined_rois)
             else:
                 continue  # avoid adding empty masks
 
@@ -476,5 +476,5 @@ def common_input_process_single(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE
 def weighted_loss(y_true,y_pred):
     weight_matrix=K.flatten(y_pred[:,:,:,-1])
     y_pre=y_pred[:,:,:,:-1]
-    E=-1/(1)*K.dot(K.transpose(K.expand_dims(weight_matrix,axis=-1)),K.expand_dims(K.log(K.flatten(tf.math.reduce_sum(tf.multiply(y_true,y_pre),-1))),axis=-1))
+    E=-K.dot(K.transpose(K.expand_dims(weight_matrix,axis=-1)),K.expand_dims(K.log(K.flatten(tf.math.reduce_sum(tf.multiply(y_true,y_pre),-1))),axis=-1))
     return E[:,0]
