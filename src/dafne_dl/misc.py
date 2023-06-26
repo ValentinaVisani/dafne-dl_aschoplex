@@ -18,6 +18,7 @@
 
 import hashlib
 import os
+from collections import OrderedDict
 
 import numpy as np
 
@@ -61,3 +62,75 @@ def calc_dice_score(y_true, y_pred):
     intersect = np.sum(y_true * y_pred)  # works because all multiplied by 0 gets 0
     denominator = np.sum(y_true) + np.sum(y_pred)  # works because all multiplied by 0 gets 0
     return (2 * intersect) / (denominator + 1e-6)
+
+
+def fn_to_source(function):
+    """
+    Given a function, returns it source. If the source cannot be retrieved, return the object itself
+    """
+    #print('Converting fn to source')
+    if function is None: return None
+    try:
+        return inspect.getsource(function)
+    except OSError:
+        #print('Conversion failed!')
+        try:
+            src = function.source
+            #print('Returning embedded source')
+            return src
+        except:
+            pass
+    print('Getting source failed - Returning bytecode')
+    return function # the source cannot be retrieved, return the object itself
+
+
+def source_to_fn(source, patches: dict = {}):
+    """
+    Given a source, return the (first) defined function. If the source is not a string, return the object itself
+    """
+    if type(source) is not str:
+        print("source to fn: source is not a string")
+        return source
+    #print("source to fn: source is string")
+    for search, replace in patches.items():
+        source = re.sub(search, replace, source)
+
+    locs = {}
+    globs = {}
+    try:
+        exec(source, globs, locs)
+    except:
+        return source # the string was just a string apparently, not valid code
+    for k,v in locs.items():
+        if callable(v):
+            #print('source_to_fn. Found function', k)
+            v.source = source
+            return v
+    return source
+
+
+def torch_apply_fn_to_state_1(state1, fn):
+    """
+    Applies a function to a states, and returns the result as a new state
+    """
+    new_state = OrderedDict()
+    for key, value in state1.items():
+        new_state[key] = fn(value)
+    return new_state
+
+
+def torch_apply_fn_to_state_2(state1, state2, fn):
+    """
+    Applies a function to two states, and returns the result as a new state
+    """
+    new_state = OrderedDict()
+    for key, value in state1.items():
+        new_state[key] = fn(value, state2[key])
+    return new_state
+
+
+def torch_state_to(state, device):
+    new_state = OrderedDict()
+    for key, value in state.items():
+        new_state[key] = value.to(device)
+    return new_state

@@ -19,13 +19,18 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import IO, Callable, List, Union, Optional, Dict
+from typing import IO, Callable, Union, Optional
 import numpy as np
 import time
 
 
 class IncompatibleModelError(Exception):
     pass
+
+
+class WrongDimensionalityError(Exception):
+    pass
+
 
 class DeepLearningClass(ABC):   
     
@@ -152,6 +157,14 @@ class DeepLearningClass(ABC):
     def reset_timestamp(self):
         self.timestamp_id = int(time.time())
 
+    def get_data_dimensionality(self):
+        try:
+            data_dimensionality = self.data_dimensionality
+        except AttributeError:
+            data_dimensionality = 2
+        return data_dimensionality
+
+
 class ModelProvider(ABC):
     """
         Abstract class that is the base for loading (and, in the future, storing?) models.
@@ -227,7 +240,6 @@ class ModelProvider(ABC):
         np.savez_compressed(bytes_io, **data)
         self._upload_bytes(bytes_io)
         bytes_io.close()
-
 
     @abstractmethod
     def _upload_bytes(self, data: IO):

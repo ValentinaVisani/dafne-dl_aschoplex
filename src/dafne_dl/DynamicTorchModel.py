@@ -22,76 +22,69 @@ Such top level functions should define all the imports within themselves (i.e. d
 
 from __future__ import annotations
 
-import re
+import os
+from collections import OrderedDict
 
-from .interfaces import IncompatibleModelError, DeepLearningClass
+import torch
+
+from .interfaces import DeepLearningClass
 import dill
 from io import BytesIO
-import numpy as np
-import inspect
-import time
-from misc import fn_to_source, source_to_fn
+from misc import fn_to_source, source_to_fn, torch_state_to, torch_apply_fn_to_state_2, torch_apply_fn_to_state_1
 
 
-def default_keras_weights_to_model_function(modelObj: DynamicDLModel, weights):
-    modelObj.model.set_weights(weights)
+def default_torch_weights_to_model_function(modelObj: DynamicTorchModel, weights):
+    modelObj.model.load_state_dict(torch_state_to(weights, modelObj.device))
 
 
-def default_keras_model_to_weights_function(modelObj: DynamicDLModel):
-    return modelObj.model.get_weights()
+def default_torch_model_to_weights_function(modelObj: DynamicTorchModel):
+    return torch_apply_fn_to_state_1(modelObj.model.state_dict(), lambda x: x.clone())
 
 
-def default_keras_delta_function(lhs: DynamicDLModel, rhs: DynamicDLModel, threshold=None):
+def default_torch_delta_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel, threshold=None):
     from dafne_dl.interfaces import IncompatibleModelError
     if lhs.model_id != rhs.model_id: raise IncompatibleModelError
     lhs_weights = lhs.get_weights()
-    rhs_weights = rhs.get_weights()
-    newWeights = []
-    for depth in range(len(lhs_weights)):
-        delta = lhs_weights[depth] - rhs_weights[depth]
+    rhs_weights = torch_state_to(rhs.get_weights(), lhs.device)
+    new_weights = OrderedDict()
+    for key, value in lhs_weights.items():
+        delta = lhs_weights[key] - rhs_weights[key]
         if threshold is not None:
-            delta[np.abs(delta) < threshold] = 0
-        newWeights.append(delta)
+            delta[torch.abs(delta) < threshold] = 0
+        new_weights[key] = delta
     outputObj = lhs.get_empty_copy()
-    outputObj.set_weights(newWeights)
+    outputObj.set_weights(new_weights)
     outputObj.is_delta = True
     outputObj.timestamp_id = rhs.timestamp_id # set the timestamp of the original model to identify the base
     return outputObj
 
 
-def default_keras_add_weights_function(lhs: DynamicDLModel, rhs: DynamicDLModel):
+def default_torch_add_weights_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel):
     from dafne_dl.interfaces import IncompatibleModelError
     if lhs.model_id != rhs.model_id: raise IncompatibleModelError
     lhs_weights = lhs.get_weights()
-    rhs_weights = rhs.get_weights()
-    newWeights = []
-    for depth in range(len(lhs_weights)):
-        newWeights.append(lhs_weights[depth] + rhs_weights[depth])
+    rhs_weights = torch_state_to(rhs.get_weights(), lhs.device)
+    new_weights = torch_apply_fn_to_state_2(lhs_weights, rhs_weights, torch.add)
     outputObj = lhs.get_empty_copy()
-    outputObj.set_weights(newWeights)
+    outputObj.set_weights(new_weights)
     return outputObj
 
 
-def default_keras_multiply_function(lhs: DynamicDLModel, rhs: float):
+def default_torch_multiply_function(lhs: DynamicTorchModel, rhs: float):
     if not isinstance(rhs, (int, float)):
         raise NotImplementedError('Incompatible types for multiplication (only multiplication by numeric factor is allowed)')
     lhs_weights = lhs.get_weights()
-    newWeights = []
-    for depth in range(len(lhs_weights)):
-        newWeights.append(lhs_weights[depth] * rhs)
+    new_weights = torch_apply_fn_to_state_1(lhs_weights, lambda x: x * rhs)
     outputObj = lhs.get_empty_copy()
-    outputObj.set_weights(newWeights)
+    outputObj.set_weights(new_weights)
     return outputObj
 
 
-def default_keras_weight_copy_function(weights_in):
-    weights_out = []
-    for layer in weights_in:
-        weights_out.append(layer.copy())
-    return weights_out
+def default_torch_weight_copy_function(weights_in):
+    return torch_apply_fn_to_state_1(weights_in, lambda x: x.clone())
 
 
-class DynamicDLModel(DeepLearningClass):
+class DynamicTorchModel(DeepLearningClass):
 
     """
     Class to represent a deep learning model that can be serialized/deserialized
@@ -99,12 +92,12 @@ class DynamicDLModel(DeepLearningClass):
     def __init__(self, model_id,  # a unique ID to avoid mixing different models
                  init_model_function,  # inits the model. Accepts no parameters and returns the model
                  apply_model_function,  # function that applies the model. Has the object, and image
-                 weights_to_model_function = default_keras_weights_to_model_function,  # put model weights inside the model.
-                 model_to_weights_function = default_keras_model_to_weights_function,  # get the weights from the model in a pickable format
-                 calc_delta_function = default_keras_delta_function,  # calculate the weight delta
-                 apply_delta_function = default_keras_add_weights_function,  # apply a weight delta
-                 weight_copy_function = default_keras_weight_copy_function,  # create a deep copy of weights
-                 factor_multiply_function = default_keras_multiply_function,
+                 weights_to_model_function = default_torch_weights_to_model_function,  # put model weights inside the model.
+                 model_to_weights_function = default_torch_model_to_weights_function,  # get the weights from the model in a pickable format
+                 calc_delta_function = default_torch_delta_function,  # calculate the weight delta
+                 apply_delta_function = default_torch_add_weights_function,  # apply a weight delta
+                 weight_copy_function = default_torch_weight_copy_function,  # create a deep copy of weights
+                 factor_multiply_function = default_torch_multiply_function,
                  incremental_learn_function = None,  # function to perform an incremental learning step
                  weights = None,  # initial weights
                  timestamp_id = None,
@@ -113,7 +106,11 @@ class DynamicDLModel(DeepLearningClass):
         self.model = None
         self.model_id = model_id
         self.is_delta = is_delta
-        self.data_dimensionality = self.get_data_dimensionality()
+        self.data_dimensionality = data_dimensionality
+
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        device_str = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(device_str)
 
         # lsit identifying the external functions that need to be saved with source and serialized
         self.function_mappings = [
@@ -132,8 +129,8 @@ class DynamicDLModel(DeepLearningClass):
         for fn_name in self.function_mappings:
             self.set_internal_fn(fn_name, locals()[fn_name])
 
-
         self.init_model() # initializes the model
+
         if timestamp_id is None:
             self.reset_timestamp()
         else:
@@ -159,7 +156,7 @@ class DynamicDLModel(DeepLearningClass):
         None.
 
         """
-        self.model = self.init_model_function()
+        self.model = self.init_model_function().to(self.device)
         
     def set_weights(self, weights):
         """
@@ -228,30 +225,30 @@ class DynamicDLModel(DeepLearningClass):
         self.dump(file)
         return file.getvalue()
     
-    def get_empty_copy(self) -> DynamicDLModel:
+    def get_empty_copy(self) -> DynamicTorchModel:
         """
         Gets an empty copy (i.e. without weights) of the current object
 
         Returns
         -------
-        DynamicDLModel
+        DynamicTorchModel
             Output copy
 
         """
-        new_model = DynamicDLModel(self.model_id, self.init_model_function, self.apply_model_function,
+        new_model = DynamicTorchModel(self.model_id, self.init_model_function, self.apply_model_function,
                                    weights=None, timestamp_id=self.timestamp_id, is_delta=self.is_delta,
-                                   data_dimensionality=self.get_data_dimensionality())
+                                      data_dimensionality=self.get_data_dimensionality())
         for fn_name in self.function_mappings:
             new_model.set_internal_fn(fn_name, getattr(self, fn_name))
         return new_model
 
-    def copy(self) -> DynamicDLModel:
+    def copy(self) -> DynamicTorchModel:
         """
         Gets a copy (i.e. with weights) of the current object
 
         Returns
         -------
-        DynamicDLModel
+        DynamicTorchModel
             Output copy
 
         """
@@ -260,7 +257,7 @@ class DynamicDLModel(DeepLearningClass):
         return model_out
 
     @staticmethod
-    def Load(file) -> DynamicDLModel:
+    def Load(file) -> DynamicTorchModel:
         """
         Creates an object from a file
 
@@ -271,7 +268,7 @@ class DynamicDLModel(DeepLearningClass):
 
         Returns
         -------
-        DynamicDLModel
+        DynamicTorchModel
             A new instance of a dynamic model
 
         """
@@ -288,11 +285,11 @@ class DynamicDLModel(DeepLearningClass):
                 inputDict[k] = source_to_fn(v, patches) # convert the functions from source
 
         #print(inputDict)
-        outputObj = DynamicDLModel(**inputDict)
+        outputObj = DynamicTorchModel(**inputDict)
         return outputObj
         
     @staticmethod
-    def Loads(b: bytes) -> DynamicDLModel:
+    def Loads(b: bytes) -> DynamicTorchModel:
         """
         Creates an object from a binary dump
 
@@ -303,9 +300,9 @@ class DynamicDLModel(DeepLearningClass):
 
         Returns
         -------
-        DynamicDLModel
+        DynamicTorchModel
             A new instance of a dynamic model
 
         """
         file = BytesIO(b)
-        return DynamicDLModel.Load(file)
+        return DynamicTorchModel.Load(file)
