@@ -66,7 +66,8 @@ def source_to_fn(source, patches: dict = {}):
     globs = {}
     try:
         exec(source, globs, locs)
-    except:
+    except Exception as e:
+        print("source to fn: exec failed", e)
         return source # the string was just a string apparently, not valid code
     for k,v in locs.items():
         if callable(v):
