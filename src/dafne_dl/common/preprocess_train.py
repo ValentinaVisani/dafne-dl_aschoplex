@@ -324,7 +324,7 @@ def common_input_process(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE, train
 
     return image_list, mask_list
 
-def common_input_process_split(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE, MODEL_SIZE_SPLIT, trainingData, trainingOutputs):
+def common_input_process_split(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE, MODEL_SIZE_SPLIT, trainingData, trainingOutputs, biascorrection_levels=8, biascorrection_normalize=False):
     nlabels = len(set(inverse_label_dict.values()))+1 # get the number of unique values in the inverse dict
     min_defined_rois = nlabels/2 # do not add to the training set if less than this number of ROIs are defined
     resolution = np.array(trainingData['resolution'])
@@ -364,7 +364,7 @@ def common_input_process_split(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE,
             image = skimage.morphology.area_opening(image, area_threshold=4)
             image = skimage.morphology.area_closing(image, area_threshold=4)
             image=padorcut(zoom(image, zoomFactor), MODEL_SIZE)
-            imgbc=biascorrection.biascorrection_image(image)
+            imgbc=biascorrection.biascorrection_image(image, biascorrection_levels, biascorrection_normalize)
             a1,a2,a3,a4,b1,b2=split_mirror(imgbc)
             left=imgbc[int(b1):int(b2),int(a1):int(a2)]
             left=padorcut(left, MODEL_SIZE_SPLIT)
@@ -409,7 +409,7 @@ def common_input_process_split(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE,
 
 
 def common_input_process_single(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE, MODEL_SIZE_SPLIT, trainingData,
-                               trainingOutputs, swap):
+                               trainingOutputs, swap, biascorrection_levels=8, biascorrection_normalize=False):
     nlabels = len(set(inverse_label_dict.values())) + 1  # get the number of unique values in the inverse dict
     min_defined_rois = nlabels / 2  # do not add to the training set if less than this number of ROIs are defined
     resolution = np.array(trainingData['resolution'])
@@ -443,7 +443,7 @@ def common_input_process_single(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE
             image = skimage.morphology.area_opening(image, area_threshold=4)
             image = skimage.morphology.area_closing(image, area_threshold=4)
             image = padorcut(zoom(image, zoomFactor), MODEL_SIZE_SPLIT)
-            imgbc = biascorrection.biascorrection_image(image)
+            imgbc = biascorrection.biascorrection_image(image, biascorrection_levels, biascorrection_normalize)
 
             if swap:
                 imgbc = imgbc[::1,::-1]
