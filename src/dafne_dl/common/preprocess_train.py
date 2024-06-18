@@ -411,6 +411,7 @@ def common_input_process_split(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE,
 def common_input_process_single(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE, MODEL_SIZE_SPLIT, trainingData,
                                trainingOutputs, swap, biascorrection_levels=8, biascorrection_normalize=False):
     nlabels = len(set(inverse_label_dict.values())) + 1  # get the number of unique values in the inverse dict
+    print('Number of labels:', nlabels)
     min_defined_rois = nlabels / 2  # do not add to the training set if less than this number of ROIs are defined
     resolution = np.array(trainingData['resolution'])
     zoomFactor = resolution / MODEL_RESOLUTION
@@ -438,7 +439,7 @@ def common_input_process_single(inverse_label_dict, MODEL_RESOLUTION, MODEL_SIZE
             else:
                 continue  # avoid adding empty masks
 
-        if defined_rois > min_defined_rois:
+        if defined_rois >= min_defined_rois:
             image = trainingData['image_list'][imageIndex]
             image = skimage.morphology.area_opening(image, area_threshold=4)
             image = skimage.morphology.area_closing(image, area_threshold=4)
