@@ -115,7 +115,7 @@ class DynamicDLModel(DeepLearningClass):
         self.is_delta = is_delta
         self.data_dimensionality = self.get_data_dimensionality()
 
-        # lsit identifying the external functions that need to be saved with source and serialized
+        # list identifying the external functions that need to be saved with source and serialized
         self.function_mappings = [
             'init_model_function',
             'apply_model_function',
