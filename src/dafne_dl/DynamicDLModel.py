@@ -30,7 +30,7 @@ from io import BytesIO
 import numpy as np
 import inspect
 import time
-from misc import fn_to_source, source_to_fn
+from .misc import fn_to_source, source_to_fn
 
 
 def default_keras_weights_to_model_function(modelObj: DynamicDLModel, weights):
