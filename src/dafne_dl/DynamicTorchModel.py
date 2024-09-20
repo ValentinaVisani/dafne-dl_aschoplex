@@ -30,19 +30,22 @@ import torch
 from .interfaces import DeepLearningClass
 import dill
 from io import BytesIO
-from misc import fn_to_source, source_to_fn, torch_state_to, torch_apply_fn_to_state_2, torch_apply_fn_to_state_1
+from .misc import fn_to_source, source_to_fn
 
 
 def default_torch_weights_to_model_function(modelObj: DynamicTorchModel, weights):
+    from dafne_dl.misc import torch_state_to
     modelObj.model.load_state_dict(torch_state_to(weights, modelObj.device))
 
 
 def default_torch_model_to_weights_function(modelObj: DynamicTorchModel):
+    from dafne_dl.misc import torch_apply_fn_to_state_1
     return torch_apply_fn_to_state_1(modelObj.model.state_dict(), lambda x: x.clone())
 
 
 def default_torch_delta_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel, threshold=None):
     from dafne_dl.interfaces import IncompatibleModelError
+    from dafne_dl.misc import torch_state_to
     if lhs.model_id != rhs.model_id: raise IncompatibleModelError
     lhs_weights = lhs.get_weights()
     rhs_weights = torch_state_to(rhs.get_weights(), lhs.device)
@@ -60,6 +63,7 @@ def default_torch_delta_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel,
 
 
 def default_torch_add_weights_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel):
+    from dafne_dl.misc import torch_apply_fn_to_state_2, torch_state_to
     from dafne_dl.interfaces import IncompatibleModelError
     if lhs.model_id != rhs.model_id: raise IncompatibleModelError
     lhs_weights = lhs.get_weights()
@@ -71,6 +75,7 @@ def default_torch_add_weights_function(lhs: DynamicTorchModel, rhs: DynamicTorch
 
 
 def default_torch_multiply_function(lhs: DynamicTorchModel, rhs: float):
+    from dafne_dl.misc import torch_apply_fn_to_state_1
     if not isinstance(rhs, (int, float)):
         raise NotImplementedError('Incompatible types for multiplication (only multiplication by numeric factor is allowed)')
     lhs_weights = lhs.get_weights()
@@ -81,6 +86,7 @@ def default_torch_multiply_function(lhs: DynamicTorchModel, rhs: float):
 
 
 def default_torch_weight_copy_function(weights_in):
+    from dafne_dl.misc import torch_apply_fn_to_state_1
     return torch_apply_fn_to_state_1(weights_in, lambda x: x.clone())
 
 
@@ -112,7 +118,7 @@ class DynamicTorchModel(DeepLearningClass):
         device_str = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device_str)
 
-        # lsit identifying the external functions that need to be saved with source and serialized
+        # list identifying the external functions that need to be saved with source and serialized
         self.function_mappings = [
             'init_model_function',
             'apply_model_function',

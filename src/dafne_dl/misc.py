@@ -17,7 +17,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import hashlib
-import os
+import inspect
 from collections import OrderedDict
 
 import numpy as np
