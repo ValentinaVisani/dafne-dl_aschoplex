@@ -19,6 +19,7 @@
 import hashlib
 import inspect
 from collections import OrderedDict
+import re
 
 import numpy as np
 
@@ -88,6 +89,8 @@ def source_to_fn(source, patches: dict = {}):
     """
     Given a source, return the (first) defined function. If the source is not a string, return the object itself
     """
+    #print('source to fn')
+    #print(source)
     if type(source) is not str:
         print("source to fn: source is not a string")
         return source

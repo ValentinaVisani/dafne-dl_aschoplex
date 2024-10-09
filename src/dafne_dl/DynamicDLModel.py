@@ -24,13 +24,11 @@ from __future__ import annotations
 
 import re
 
-from .interfaces import IncompatibleModelError, DeepLearningClass
+from .interfaces import DeepLearningClass
 import dill
 from io import BytesIO
 import numpy as np
-import inspect
-import time
-from .misc import fn_to_source, source_to_fn
+from .misc import fn_to_source
 
 
 def default_keras_weights_to_model_function(modelObj: DynamicDLModel, weights):
@@ -109,7 +107,8 @@ class DynamicDLModel(DeepLearningClass):
                  weights = None,  # initial weights
                  timestamp_id = None,
                  is_delta = False,
-                 data_dimensionality = 2):
+                 data_dimensionality = 2,
+                 **kwargs):
         self.model = None
         self.model_id = model_id
         self.is_delta = is_delta
@@ -214,7 +213,8 @@ class DynamicDLModel(DeepLearningClass):
             'weights': self.get_weights(),
             'timestamp_id': self.timestamp_id,
             'is_delta': self.is_delta,
-            'data_dimensionality': self.get_data_dimensionality()
+            'data_dimensionality': self.get_data_dimensionality(),
+            'type': 'DynamicDLModel'
             }
 
         # add the internal functions to the dictionary
@@ -276,20 +276,9 @@ class DynamicDLModel(DeepLearningClass):
 
         """
 
-        # code patches for on-the-fly conversion of old models to new format
-        patches = {
-            'from dl': 'from dafne_dl',
-            'import dl': 'import dafne_dl'
-        }
-
-        inputDict = dill.load(file)
-        for k,v in inputDict.items():
-            if '_function' in k:
-                inputDict[k] = source_to_fn(v, patches) # convert the functions from source
-
-        #print(inputDict)
-        outputObj = DynamicDLModel(**inputDict)
-        return outputObj
+        from .model_loaders import load_model_from_class
+        input_dict = dill.load(file)
+        return load_model_from_class(input_dict, DynamicDLModel)
         
     @staticmethod
     def Loads(b: bytes) -> DynamicDLModel:

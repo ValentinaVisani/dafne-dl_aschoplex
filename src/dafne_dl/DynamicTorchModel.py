@@ -26,24 +26,24 @@ import os
 from collections import OrderedDict
 
 import torch
+import dill
 
 from .interfaces import DeepLearningClass
-import dill
 from io import BytesIO
-from .misc import fn_to_source, source_to_fn
+from .misc import fn_to_source
 
 
-def default_torch_weights_to_model_function(modelObj: DynamicTorchModel, weights):
+def default_torch_weights_to_model_function(modelObj, weights):
     from dafne_dl.misc import torch_state_to
     modelObj.model.load_state_dict(torch_state_to(weights, modelObj.device))
 
 
-def default_torch_model_to_weights_function(modelObj: DynamicTorchModel):
+def default_torch_model_to_weights_function(modelObj):
     from dafne_dl.misc import torch_apply_fn_to_state_1
     return torch_apply_fn_to_state_1(modelObj.model.state_dict(), lambda x: x.clone())
 
 
-def default_torch_delta_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel, threshold=None):
+def default_torch_delta_function(lhs, rhs, threshold=None):
     from dafne_dl.interfaces import IncompatibleModelError
     from dafne_dl.misc import torch_state_to
     if lhs.model_id != rhs.model_id: raise IncompatibleModelError
@@ -62,7 +62,7 @@ def default_torch_delta_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel,
     return outputObj
 
 
-def default_torch_add_weights_function(lhs: DynamicTorchModel, rhs: DynamicTorchModel):
+def default_torch_add_weights_function(lhs, rhs):
     from dafne_dl.misc import torch_apply_fn_to_state_2, torch_state_to
     from dafne_dl.interfaces import IncompatibleModelError
     if lhs.model_id != rhs.model_id: raise IncompatibleModelError
@@ -74,7 +74,7 @@ def default_torch_add_weights_function(lhs: DynamicTorchModel, rhs: DynamicTorch
     return outputObj
 
 
-def default_torch_multiply_function(lhs: DynamicTorchModel, rhs: float):
+def default_torch_multiply_function(lhs, rhs: float):
     from dafne_dl.misc import torch_apply_fn_to_state_1
     if not isinstance(rhs, (int, float)):
         raise NotImplementedError('Incompatible types for multiplication (only multiplication by numeric factor is allowed)')
@@ -108,7 +108,8 @@ class DynamicTorchModel(DeepLearningClass):
                  weights = None,  # initial weights
                  timestamp_id = None,
                  is_delta = False,
-                 data_dimensionality = 2):
+                 data_dimensionality = 2,
+                 **kwargs):
         self.model = None
         self.model_id = model_id
         self.is_delta = is_delta
@@ -217,7 +218,8 @@ class DynamicTorchModel(DeepLearningClass):
             'weights': self.get_weights(),
             'timestamp_id': self.timestamp_id,
             'is_delta': self.is_delta,
-            'data_dimensionality': self.get_data_dimensionality()
+            'data_dimensionality': self.get_data_dimensionality(),
+            'type': 'DynamicTorchModel'
             }
 
         # add the internal functions to the dictionary
@@ -278,22 +280,10 @@ class DynamicTorchModel(DeepLearningClass):
             A new instance of a dynamic model
 
         """
+        from .model_loaders import load_model_from_class
+        input_dict = dill.load(file)
+        return load_model_from_class(input_dict, DynamicTorchModel)
 
-        # code patches for on-the-fly conversion of old models to new format
-        patches = {
-            'from dl': 'from dafne_dl',
-            'import dl': 'import dafne_dl'
-        }
-
-        inputDict = dill.load(file)
-        for k,v in inputDict.items():
-            if '_function' in k:
-                inputDict[k] = source_to_fn(v, patches) # convert the functions from source
-
-        #print(inputDict)
-        outputObj = DynamicTorchModel(**inputDict)
-        return outputObj
-        
     @staticmethod
     def Loads(b: bytes) -> DynamicTorchModel:
         """
