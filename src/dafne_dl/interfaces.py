@@ -17,6 +17,9 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from __future__ import annotations
+
+import io
+import json
 from abc import ABC, abstractmethod
 from io import BytesIO
 from typing import IO, Callable, Union, Optional
@@ -33,7 +36,28 @@ class WrongDimensionalityError(Exception):
 
 
 class DeepLearningClass(ABC):   
-    
+
+    def __init__(self, metadata: Union[dict, io.IOBase, str] = None):
+        if metadata is not None:
+            self.set_metadata(metadata)
+        else:
+            self.metadata = {}
+
+    def get_metadata(self):
+        return self.metadata
+
+    def set_metadata(self, metadata: Union[dict, io.IOBase, str]):
+        if isinstance(metadata, io.IOBase):
+            self.metadata = json.load(metadata)
+        elif isinstance(metadata, str):
+            with open(metadata, 'r') as f:
+                self.metadata = json.load(f)
+        else:
+            self.metadata = metadata
+
+    def save_json_metadata(self, f, pretty=False):
+        json.dump(self.metadata, f, indent=4 if pretty else None)
+
     @abstractmethod
     def init_model(self):
         """

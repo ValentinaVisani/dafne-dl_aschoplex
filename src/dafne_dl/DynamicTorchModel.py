@@ -22,6 +22,7 @@ Such top level functions should define all the imports within themselves (i.e. d
 
 from __future__ import annotations
 
+import copy
 import os
 from collections import OrderedDict
 
@@ -109,7 +110,9 @@ class DynamicTorchModel(DeepLearningClass):
                  timestamp_id = None,
                  is_delta = False,
                  data_dimensionality = 2,
+                 metadata = None,
                  **kwargs):
+        DeepLearningClass.__init__(self, metadata)
         self.model = None
         self.model_id = model_id
         self.is_delta = is_delta
@@ -219,7 +222,8 @@ class DynamicTorchModel(DeepLearningClass):
             'timestamp_id': self.timestamp_id,
             'is_delta': self.is_delta,
             'data_dimensionality': self.get_data_dimensionality(),
-            'type': 'DynamicTorchModel'
+            'type': 'DynamicTorchModel',
+            'metadata': self.metadata
             }
 
         # add the internal functions to the dictionary
@@ -245,7 +249,7 @@ class DynamicTorchModel(DeepLearningClass):
         """
         new_model = DynamicTorchModel(self.model_id, self.init_model_function, self.apply_model_function,
                                    weights=None, timestamp_id=self.timestamp_id, is_delta=self.is_delta,
-                                      data_dimensionality=self.get_data_dimensionality())
+                                      data_dimensionality=self.get_data_dimensionality(), metadata=copy.deepcopy(self.metadata))
         for fn_name in self.function_mappings:
             new_model.set_internal_fn(fn_name, getattr(self, fn_name))
         return new_model
