@@ -31,7 +31,7 @@ import dill
 
 from .interfaces import DeepLearningClass
 from io import BytesIO
-from .misc import fn_to_source
+from .misc import fn_to_source, torch_state_to
 
 
 def default_torch_weights_to_model_function(modelObj, weights):
@@ -218,7 +218,7 @@ class DynamicTorchModel(DeepLearningClass):
         """
         outputDict = {
             'model_id': self.model_id,
-            'weights': self.get_weights(),
+            'weights': torch_state_to(self.get_weights(), 'cpu'),
             'timestamp_id': self.timestamp_id,
             'is_delta': self.is_delta,
             'data_dimensionality': self.get_data_dimensionality(),
