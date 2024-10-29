@@ -17,8 +17,11 @@ def load_model_from_class(input_dict, model_class):
     return model_class(**input_dict)
 
 
-def generic_load_model(file_descriptor):
-    input_dict = dill.load(file_descriptor)
+def generic_load_model(file_descriptor_or_dict):
+    if isinstance(file_descriptor_or_dict, dict):
+        input_dict = file_descriptor_or_dict
+    else:
+        input_dict = dill.load(file_descriptor_or_dict)
     model_class = input_dict.get('type', 'DynamicDLModel')
     if model_class == 'DynamicDLModel':
         from dafne_dl.DynamicDLModel import DynamicDLModel as ModelClass
