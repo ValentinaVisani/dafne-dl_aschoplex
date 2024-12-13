@@ -207,7 +207,7 @@ class DynamicEnsembleModel(DeepLearningClass):
     def factor_multiply(self, factor: float):
         return self.factor_multiply_function(self, factor)
     
-    def incremental_learn(self, trainingData, trainingOutputs, bs=5, minTrainImages=5):
+    def incremental_learn(self, trainingData, trainingOutputs, bs=1, minTrainImages=5):
         self.incremental_learn_function(self, trainingData, trainingOutputs, bs, minTrainImages)
         
     def dump(self, file):
@@ -227,7 +227,6 @@ class DynamicEnsembleModel(DeepLearningClass):
         outputDict = {
             'model_id': self.model_id,
             'weights': [torch_state_to(weights, 'cpu') for weights in self.get_weights()],
-            # 'weights': torch_state_to(self.get_weights(), 'cpu'),
             'timestamp_id': self.timestamp_id,
             'is_delta': self.is_delta,
             'data_dimensionality': self.get_data_dimensionality(),
