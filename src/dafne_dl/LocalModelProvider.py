@@ -43,7 +43,7 @@ class LocalModelProvider(ModelProvider):
 
     def load_model(self, model_name: str, progress_callback: Optional[Callable[[int, int], None]] = None,
                    force_download: bool = False,
-                   timestamp: Optional[Union[int,str]] = None) -> DynamicDLModel:
+                   timestamp: Optional[Union[int,str]] = None) -> DynamicDLModel | DynamicEnsembleModel:
         """
         Loads a deep learning model.
 
@@ -82,7 +82,7 @@ class LocalModelProvider(ModelProvider):
 
         print('Opening', model_to_load)
 
-        if model_name.find('aschoplex'):
+        if model_name.find('aschoplex')>=0:
             return DynamicEnsembleModel.Load(open(model_to_load, 'rb'))
         else:
             return DynamicDLModel.Load(open(model_to_load, 'rb'))
@@ -109,9 +109,8 @@ class LocalModelProvider(ModelProvider):
 
         return out_dict
 
-    def import_model(self, file_path, model_name):
-        print('Importing model')
-        if model_name.find('aschoplex'):
+    def import_model(self, file_path, model_name: str):
+        if model_name.find('aschoplex')>=0:
             model = DynamicEnsembleModel.Load(open(file_path, 'rb'))
         else:
             model = DynamicDLModel.Load(open(file_path, 'rb'))
@@ -120,7 +119,7 @@ class LocalModelProvider(ModelProvider):
     def available_models(self) -> Union[None, List[str]]:
         return self.get_model_names()
 
-    def upload_model(self, model_name: str, model: DynamicDLModel, dice_score: float = 0.0):
+    def upload_model(self, model_name: str, model: DynamicEnsembleModel, dice_score: float = 0.0):
         print("You are using the LocalModelProvider. Model is saved in the model directory!")
         filename = f'{model_name}_{model.timestamp_id}.model'
         print('Saving', filename)

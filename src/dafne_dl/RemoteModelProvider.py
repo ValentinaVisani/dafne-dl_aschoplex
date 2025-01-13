@@ -146,7 +146,7 @@ class RemoteModelProvider(ModelProvider):
             file_hash_local = calculate_file_hash(local_model_path)
             if file_hash_local == file_hash_remote:
                 print('Model exists, skipping download')
-                if model_name.find('aschoplex'):
+                if model_name.find('aschoplex')>=0:
                     model = DynamicEnsembleModel.Load(open(local_model_path, 'rb'))
                 else:
                     model = DynamicDLModel.Load(open(local_model_path, 'rb'))
@@ -188,7 +188,7 @@ class RemoteModelProvider(ModelProvider):
 
         if success:
             print('Model check OK')
-            if model_name.find('aschoplex'):
+            if model_name.find('aschoplex')>=0:
                 model = DynamicDLModel.Load(open(local_model_path, "rb"))
             else:
                 model = DynamicDLModel.Load(open(local_model_path, "rb"))
