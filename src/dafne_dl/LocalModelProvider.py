@@ -21,6 +21,7 @@ from pathlib import Path
 
 from .interfaces import ModelProvider
 from .DynamicDLModel import DynamicDLModel
+from .DynamicEnsembleModel import DynamicEnsembleModel
 from typing import Union, IO, List, Optional
 import os
 import datetime
@@ -80,7 +81,11 @@ class LocalModelProvider(ModelProvider):
             raise FileNotFoundError("Could not find model file.")
 
         print('Opening', model_to_load)
-        return DynamicDLModel.Load(open(model_to_load, 'rb'))
+
+        if model_name.find('aschoplex'):
+            return DynamicEnsembleModel.Load(open(model_to_load, 'rb'))
+        else:
+            return DynamicDLModel.Load(open(model_to_load, 'rb'))
 
     def model_details(self, model_name: str) -> dict:
         # get model versions
@@ -106,7 +111,10 @@ class LocalModelProvider(ModelProvider):
 
     def import_model(self, file_path, model_name):
         print('Importing model')
-        model = DynamicDLModel.Load(open(file_path, 'rb'))
+        if model_name.find('aschoplex'):
+            model = DynamicEnsembleModel.Load(open(file_path, 'rb'))
+        else:
+            model = DynamicDLModel.Load(open(file_path, 'rb'))
         self.upload_model(model_name, model)
 
     def available_models(self) -> Union[None, List[str]]:
